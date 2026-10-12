@@ -187,18 +187,50 @@
     try { video.currentTime = Math.max(0, t); } catch (e) {}
   }
 
+  // switcher.cdn.ruv.is skilar JSON {"location": "...m3u8"} en ekki spilunarlista, og velur
+  // innlendan/erlendan straum eftir IP-tölu. Því þarf sjónvarpið sjálft að spyrja hann.
+  var SWITCHER = /^https:\/\/switcher\.cdn\.ruv\.is\/resolve\//;
+  function resolveUrls(urls, cb) {
+    var out = [], i = 0;
+    function step() {
+      if (i >= urls.length) { cb(out); return; }
+      var u = urls[i++];
+      if (!SWITCHER.test(u)) { out.push(u); step(); return; }
+      var x = new XMLHttpRequest(), fin = false;
+      function done(loc) { if (fin) return; fin = true; if (loc) out.push(loc); step(); }
+      x.open('GET', u, true);
+      x.timeout = 6000;
+      x.onload = function () {
+        var loc = null;
+        try { loc = JSON.parse(x.responseText).location; } catch (e) { /* ekki JSON */ }
+        done(x.status === 200 && typeof loc === 'string' && /^https:\/\//.test(loc) ? loc : null);
+      };
+      x.onerror = x.ontimeout = function () { done(null); };
+      x.send();
+    }
+    step();
+  }
+
   // ---------- Aðgerðir ----------
+  var liveReq = 0;
   function playLive(chIndex, fromStartOfProg) {
     state.ch = (chIndex + CHANNELS.length) % CHANNELS.length;
     state.mode = 'live'; state.prog = null; state.progList = null;
     store('skjarinn.ch', String(state.ch));
-    var ch = CHANNELS[state.ch];
-    load(ch.live, null, function () {
-      // seekable-gluggi beinnar útsendingar fyllist ekki strax við loadedmetadata
-      if (fromStartOfProg) setTimeout(function () { jumpLiveTo(fromStartOfProg.start); }, 1500);
+    var ch = CHANNELS[state.ch], req = ++liveReq;
+    spinner(true);
+    resolveUrls(ch.live, function (urls) {
+      if (req !== liveReq || state.mode !== 'live') return; // búið að skipta um rás á meðan
+      startLive(urls, fromStartOfProg);
     });
     refreshLiveProg();
     showBar();
+  }
+  function startLive(urls, fromStartOfProg) {
+    load(urls, null, function () {
+      // seekable-gluggi beinnar útsendingar fyllist ekki strax við loadedmetadata
+      if (fromStartOfProg) setTimeout(function () { jumpLiveTo(fromStartOfProg.start); }, 1500);
+    });
   }
 
   // Spóla beinni útsendingu aftur að ákveðnum klukkutíma, ef straumurinn geymir nógu mikið
