@@ -108,7 +108,8 @@
     prog: null,          // þátturinn sem spilast í vod-ham
     progList: null,      // dagskrá dagsins sem prog kom úr (fyrir sjálfvirkt næsta)
     view: 'watch',       // 'watch' | 'guide'
-    liveProg: null, liveNext: null
+    liveProg: null, liveNext: null,
+    src: null            // { url, resolved } straumsins sem tókst að spila
   };
 
   function destroyHls() { if (hls) { try { hls.destroy(); } catch (e) {} hls = null; } }
@@ -136,6 +137,8 @@
       function ok() {
         if (done || load.current !== token) return; done = true;
         cleanup(); spinner(false);
+        state.src = { url: a.url, resolved: resolved };
+        if (srcKind() === 'foreign' && state.mode === 'live') toast('Erlendur straumur RÚV: innlent efni er lokað', 6000);
         if (startAt != null) seekTo(startAt);
         var p = video.play(); if (p && p['catch']) p['catch'](function () {});
         if (onReady) onReady();
@@ -150,12 +153,17 @@
         clearTimeout(timer);
       }
       var timer = setTimeout(fail, 15000);
+      var resolved = null; // endanleg slóð eftir framsendingu, ef hls.js gefur hana
       video.addEventListener('loadedmetadata', ok);
       video.addEventListener('error', fail);
 
       if (a.how === 'hls') {
         hls = new window.Hls({ liveBackBufferLength: 0, maxBufferLength: 30, backBufferLength: 30 });
         hls.on(window.Hls.Events.ERROR, function (ev, data) { if (data && data.fatal) fail(); });
+        hls.on(window.Hls.Events.MANIFEST_LOADED, function (ev, data) {
+          var nd = data && data.networkDetails;
+          resolved = (nd && (nd.responseURL || nd.url)) || null;
+        });
         hls.loadSource(a.url);
         hls.attachMedia(video);
       } else {
@@ -269,6 +277,22 @@
     });
   }
 
+  // Hvaða RÚV-straumur spilar: 'foreign' (ruverl – rétthafalokað innlent efni), 'domestic', 'auto' (switcher, óþekkt niðurstaða)
+  function srcKind() {
+    var s = state.src;
+    if (!s || state.mode !== 'live' || !CHANNELS[state.ch].epg) return null;
+    var u = s.resolved || s.url;
+    if (/ruverl|erlend/i.test(u)) return 'foreign';
+    if (/switcher\.cdn\.ruv\.is/.test(u)) return 'auto';
+    return 'domestic';
+  }
+  function renderSrc() {
+    var k = srcKind(), el = $('bar-src');
+    if (!k) { el.className = 'src hidden'; return; }
+    el.className = 'src ' + k;
+    el.innerHTML = k === 'foreign' ? 'Erlendur straumur' : k === 'domestic' ? 'Innlendur straumur' : 'Sjálfval RÚV';
+  }
+
   function setBadge(cls, text) { var b = $('bar-badge'); b.className = 'badge ' + cls; b.innerHTML = esc(text); }
 
   function renderBar() {
@@ -319,6 +343,7 @@
     $('bar-right').innerHTML = right;
     $('bar-status').innerHTML = esc(status);
     $('bar-next').innerHTML = esc(next);
+    renderSrc();
   }
   function dayOffsetOf(ms) { return Math.floor((ms - Date.parse(isoDate(0) + 'T00:00:00Z')) / 864e5); }
 

@@ -29,6 +29,12 @@ ul { list-style: none; margin: 0; padding: 0; }
 .badge.live { background: #e0352b; color: #fff; }
 .badge.shift { background: #f2b33d; color: #1a1408; }
 .badge.paused { background: #3b4150; color: #fff; }
+/* Hvaða RÚV-straumur spilar */
+.src { margin-left: .8vw; padding: .2vw .7vw; border-radius: .3vw; font-size: .95vw; font-weight: 600; border: .1vw solid; }
+.src.domestic { color: #8fd19e; border-color: #8fd19e; }
+.src.auto { color: #cfc9bd; border-color: #6b6559; }
+.src.foreign { color: #fff; background: #b4471f; border-color: #b4471f; }
+.src.hidden { display: none; }
 .bar-top .clock { margin-left: auto; }
 .bar-title { font-size: 3.1vw; font-weight: 700; margin-top: .9vw; line-height: 1.1; }
 .bar-sub { font-size: 1.4vw; color: #b5aea1; margin-top: .3vw; min-height: 1.6vw; }
