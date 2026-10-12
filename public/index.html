@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="is">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Skjárinn</title>
+  <link rel="stylesheet" href="/tv.css">
+</head>
+<body>
+  <video id="video" autoplay playsinline></video>
+
+  <!-- Upplýsingastika neðst -->
+  <div id="bar" class="bar hidden">
+    <div class="bar-top">
+      <div class="bar-ch"><span id="bar-num" class="num"></span><span id="bar-chname"></span></div>
+      <div id="bar-badge" class="badge"></div>
+      <div id="bar-clock" class="clock"></div>
+    </div>
+    <div id="bar-title" class="bar-title"></div>
+    <div id="bar-sub" class="bar-sub"></div>
+    <div class="progress">
+      <div id="bar-fill" class="fill"></div>
+      <div id="bar-head" class="head"></div>
+      <div id="bar-live" class="liveline"></div>
+    </div>
+    <div class="bar-times"><span id="bar-left"></span><span id="bar-status"></span><span id="bar-right"></span></div>
+    <div id="bar-next" class="bar-next"></div>
+    <div class="hints">▲▼ Rás &nbsp;·&nbsp; ◀▶ Spóla &nbsp;·&nbsp; OK Dagskrá &nbsp;·&nbsp; ⏎ Til baka: Beint</div>
+  </div>
+
+  <!-- Dagskrá / tímaflakk -->
+  <div id="guide" class="guide hidden">
+    <div class="g-head">
+      <div class="g-logo">Skjárinn</div>
+      <div id="g-days" class="g-days"></div>
+      <div id="g-clock" class="clock"></div>
+    </div>
+    <div class="g-body">
+      <ul id="g-channels" class="g-channels"></ul>
+      <div class="g-list-wrap"><ul id="g-progs" class="g-progs"></ul></div>
+      <div class="g-detail">
+        <div id="g-img" class="g-img"></div>
+        <div id="g-dtitle" class="g-dtitle"></div>
+        <div id="g-dmeta" class="g-dmeta"></div>
+        <div id="g-ddesc" class="g-ddesc"></div>
+        <div id="g-dhint" class="g-dhint"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+  <div id="spinner" class="spinner hidden"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.20/dist/hls.min.js"></script>
+  <script src="/channels.js"></script>
+  <script src="/tv.js"></script>
+</body>
+</html>
