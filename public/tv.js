@@ -112,6 +112,39 @@
     src: null            // { url, resolved } straumsins sem tókst að spila
   };
 
+  // Vafrinn bannar oft sjálfvirka spilun með hljóði áður en notandi hefur ýtt á takka.
+  // Þá er reynt aftur hljóðlaust og fyrsti takki kveikir á hljóðinu (eða spilar, ef það var líka bannað).
+  var needGesture = false;
+  function blocked() {
+    if (needGesture) return;
+    needGesture = true;
+    video.muted = true;
+    var q = video.play();
+    if (q && q['catch']) q['catch'](function () {});
+    // Eldri vafrar (Tizen 2017) skila engu loforði: athuga stöðuna eftir smástund
+    setTimeout(function () {
+      if (!needGesture) return;
+      toast(video.paused ? 'Ýttu á OK til að spila' : 'Ýttu á takka til að fá hljóð', 8000);
+    }, 800);
+  }
+  function tryPlay() {
+    var token = load.current;
+    var p = video.play();
+    if (p && p['catch']) p['catch'](function (err) { if (err && err.name === 'NotAllowedError') blocked(); });
+    // Óháð loforði: ef ekkert spilar eftir smástund og notandi pásaði ekki, er spilun bönnuð
+    setTimeout(function () {
+      if (load.current === token && video.paused && !state.userPaused) blocked();
+    }, 2500);
+  }
+  function onGesture() {
+    if (!needGesture) return false;
+    needGesture = false;
+    var wasPaused = video.paused;
+    video.muted = false;
+    var p = video.play(); if (p && p['catch']) p['catch'](function () {});
+    return wasPaused; // gleypa takkann ef hann fór í að ræsa spilun
+  }
+
   function destroyHls() { if (hls) { try { hls.destroy(); } catch (e) {} hls = null; } }
 
   // Reynir slóðir í röð; hverja fyrst innbyggt (Tizen) og svo með hls.js
@@ -140,7 +173,7 @@
         state.src = { url: a.url, resolved: resolved };
         if (srcKind() === 'foreign' && state.mode === 'live') toast('Erlendur straumur RÚV: innlent efni er lokað', 6000);
         if (startAt != null) seekTo(startAt);
-        var p = video.play(); if (p && p['catch']) p['catch'](function () {});
+        tryPlay();
         if (onReady) onReady();
       }
       function fail() {
@@ -558,6 +591,7 @@
 
   function onKey(e) {
     var k = e.keyCode;
+    if (onGesture()) { e.preventDefault(); return; }
     if (k >= 48 && k <= 57) { numberKey(String(k - 48)); e.preventDefault(); return; }
     if (is(k, 'BACK')) { e.preventDefault(); handleBack(); return; }
     if (is(k, 'PLAYPAUSE') || is(k, 'PLAY') || is(k, 'PAUSE')) { e.preventDefault(); if (state.view === 'watch') togglePause(); return; }
@@ -596,7 +630,7 @@
   } catch (e) {}
 
   // Músarsmellur (til prófunar í tölvu): opna/loka dagskrá
-  document.addEventListener('click', function () { if (state.view === 'guide') closeGuide(); else showBar(); });
+  document.addEventListener('click', function () { if (onGesture()) return; if (state.view === 'guide') closeGuide(); else showBar(); });
 
   // Uppfæra klukku/stiku reglulega
   setInterval(function () {
