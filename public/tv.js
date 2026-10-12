@@ -591,6 +591,7 @@
 
   function onKey(e) {
     var k = e.keyCode;
+    if (state.view === 'start') { e.preventDefault(); startKey(k); return; }
     if (onGesture()) { e.preventDefault(); return; }
     if (k >= 48 && k <= 57) { numberKey(String(k - 48)); e.preventDefault(); return; }
     if (is(k, 'BACK')) { e.preventDefault(); handleBack(); return; }
@@ -630,7 +631,7 @@
   } catch (e) {}
 
   // Músarsmellur (til prófunar í tölvu): opna/loka dagskrá
-  document.addEventListener('click', function () { if (onGesture()) return; if (state.view === 'guide') closeGuide(); else showBar(); });
+  document.addEventListener('click', function () { if (state.view === 'start') { leaveStart(); return; } if (onGesture()) return; if (state.view === 'guide') closeGuide(); else showBar(); });
 
   // Uppfæra klukku/stiku reglulega
   setInterval(function () {
@@ -643,8 +644,43 @@
   video.addEventListener('playing', function () { spinner(false); });
   video.addEventListener('pause', function () { if (state.view === 'watch') showBar(true); });
 
+  // ---------- Upphafsskjár ----------
+  // Ekkert spilar fyrr en notandi ýtir á takka: þá má vafrinn spila með hljóði.
+  var startReq = 0;
+  function showStart(chIndex) {
+    state.view = 'start';
+    state.ch = (chIndex + CHANNELS.length) % CHANNELS.length;
+    var ch = CHANNELS[state.ch], req = ++startReq;
+    $('start').className = 'start';
+    $('start-num').innerHTML = ch.num;
+    $('start-chname').innerHTML = esc(ch.name);
+    $('start-title').innerHTML = esc(ch.name);
+    $('start-sub').innerHTML = ch.epg ? 'Sæki dagskrá…' : 'Bein útsending';
+    $('start-img').style.backgroundImage = '';
+    progAt(ch, now(), function (p, n) {
+      if (req !== startReq || state.view !== 'start') return;
+      if (!p) { $('start-sub').innerHTML = 'Bein útsending'; return; }
+      $('start-title').innerHTML = esc(p.title);
+      $('start-sub').innerHTML = esc('Í beinni ' + hhmm(p.start) + '–' + hhmm(p.end) + (n ? '  ·  Næst: ' + hhmm(n.start) + ' ' + n.title : ''));
+      if (p.image) $('start-img').style.backgroundImage = 'url("' + p.image.replace(/"/g, '%22') + '")';
+    });
+  }
+  function leaveStart(chIndex) {
+    $('start').className = 'start hidden';
+    state.view = 'watch';
+    playLive(chIndex == null ? state.ch : chIndex);
+  }
+  function startKey(k) {
+    if (is(k, 'UP') || is(k, 'CH_UP')) showStart(state.ch + 1);
+    else if (is(k, 'DOWN') || is(k, 'CH_DOWN')) showStart(state.ch - 1);
+    else if (is(k, 'OK') || is(k, 'PLAY') || is(k, 'PLAYPAUSE')) leaveStart();
+    else if (k >= 49 && k <= 57) {
+      for (var i = 0; i < CHANNELS.length; i++) if (CHANNELS[i].num === k - 48) { leaveStart(i); return; }
+    }
+  }
+
   // ---------- Ræsing ----------
   if (!CHANNELS.length) { toast('Enginn rásalisti (channels.js)'); return; }
   var saved = parseInt(store('skjarinn.ch'), 10);
-  playLive(isNaN(saved) ? 0 : Math.min(saved, CHANNELS.length - 1));
+  showStart(isNaN(saved) ? 0 : Math.min(saved, CHANNELS.length - 1));
 })();

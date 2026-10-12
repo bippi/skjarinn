@@ -109,6 +109,23 @@ ul { list-style: none; margin: 0; padding: 0; }
 .g-ddesc { font-size: 1.3vw; line-height: 1.45; color: #d9d3c7; margin-top: 1vw; max-height: 11.5vw; overflow: hidden; }
 .g-dhint { font-size: 1.15vw; color: #f2b33d; margin-top: 1.2vw; font-weight: 600; }
 
+/* ---------- Upphafsskjár ---------- */
+.start { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #0b0d12; }
+.start-img { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #0b0d12 center / cover no-repeat; }
+.start-shade {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(to top, rgba(8,10,14,.97) 0%, rgba(8,10,14,.75) 40%, rgba(8,10,14,.15) 100%);
+}
+.start-info { position: absolute; left: 3.5vw; right: 3.5vw; bottom: 3vw; }
+.start-ch { font-size: 1.6vw; font-weight: 600; color: #cfc9bd; display: flex; align-items: center; }
+.start-title { font-size: 3.8vw; font-weight: 700; margin-top: 1vw; line-height: 1.1; }
+.start-sub { font-size: 1.5vw; color: #b5aea1; margin-top: .5vw; min-height: 1.7vw; }
+.start-play { display: flex; align-items: center; font-size: 1.9vw; font-weight: 600; margin-top: 2.2vw; }
+.start-btn {
+  display: inline-block; width: 4.6vw; height: 4.6vw; line-height: 4.6vw; margin-right: 1.3vw;
+  border-radius: 50%; background: #f2efe8; color: #111; text-align: center; font-size: 2vw; text-indent: .3vw;
+}
+
 /* ---------- Annað ---------- */
 .toast {
   position: absolute; top: 3vw; left: 50%; transform: translateX(-50%); -webkit-transform: translateX(-50%);
