@@ -71,13 +71,28 @@ ul { list-style: none; margin: 0; padding: 0; }
 
 .g-body { flex: 1; display: flex; margin-top: 1.8vw; min-height: 0; }
 
-.g-channels { width: 13vw; margin-right: 1.4vw; }
-.g-ch {
-  display: flex; align-items: center; font-size: 1.5vw; font-weight: 600;
-  padding: 1vw 1vw; margin-bottom: .4vw; border-radius: .5vw; color: #8f897e;
+/* Rásadálkur: ein lína á rás svo margar sjáist í einu; breikkar þegar hann er valinn */
+.g-channels {
+  width: 21vw; margin-right: 1.4vw; position: relative; overflow: hidden;
+  -webkit-transition: width .15s; transition: width .15s;
 }
-.g-ch .num { font-size: 1.1vw; border-color: #5b574f; }
-.g-ch.sel { color: #f2efe8; background: rgba(255,255,255,.06); }
+.zone-ch .g-channels { width: 34vw; }
+.zone-ch .g-detail { display: none; }
+.g-grp {
+  display: flex; align-items: baseline;
+  font-size: 1.05vw; font-weight: 700; letter-spacing: .08vw; text-transform: uppercase;
+  color: #e0352b; padding: 1.3vw .8vw .5vw; margin-bottom: .3vw;
+  border-bottom: .1vw solid rgba(224,53,43,.35); white-space: nowrap;
+}
+.g-grp:first-child { padding-top: 0; }
+.g-grp .g-grp-n { margin-left: auto; padding-left: .8vw; color: #8f897e; font-weight: 600; letter-spacing: 0; }
+.g-ch {
+  display: flex; align-items: center; font-size: 1.4vw; font-weight: 600;
+  padding: .45vw .8vw; margin-bottom: .15vw; border-radius: .4vw; color: #a39d92;
+}
+.g-ch .num { flex: none; font-size: 1vw; min-width: 2.8vw; padding: .1vw .3vw; border-color: #5b574f; }
+.g-ch .nm { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.g-ch.sel { color: #f2efe8; background: rgba(255,255,255,.08); }
 .g-ch.focus { background: #f2efe8; color: #111; }
 .g-ch.focus .num { border-color: #111; }
 
@@ -108,6 +123,14 @@ ul { list-style: none; margin: 0; padding: 0; }
 .g-dmeta { font-size: 1.25vw; color: #b5aea1; margin-top: .5vw; }
 .g-ddesc { font-size: 1.3vw; line-height: 1.45; color: #d9d3c7; margin-top: 1vw; max-height: 11.5vw; overflow: hidden; }
 .g-dhint { font-size: 1.15vw; color: #f2b33d; margin-top: 1.2vw; font-weight: 600; }
+
+/* ---------- Sarpurinn (notar sömu klasa og dagskráin) ---------- */
+.g-sarpur { margin-right: 2vw; color: #f2b33d; border-color: rgba(242,179,61,.45); }
+.sarpur .g-channels { width: 24vw; }
+.sarpur .g-prog .t:empty { display: none; }
+.sarpur .g-prog .s { color: #8f897e; }
+.sarpur .g-prog.focus .s { color: #111; }
+.s-crumb { flex: 1; font-size: 1.4vw; color: #b5aea1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ---------- Upphafsskjár ---------- */
 .start { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #0b0d12; }

@@ -33,6 +33,7 @@
   <div id="guide" class="guide hidden">
     <div class="g-head">
       <div class="g-logo">Skjárinn</div>
+      <div id="g-sarpur" class="g-day g-sarpur">Sarpurinn</div>
       <div id="g-days" class="g-days"></div>
       <div id="g-clock" class="clock"></div>
     </div>
@@ -49,6 +50,26 @@
     </div>
   </div>
 
+  <!-- Sarpurinn: efnisveita RÚV -->
+  <div id="sarpur" class="guide sarpur hidden">
+    <div class="g-head">
+      <div class="g-logo">Sarpurinn</div>
+      <div id="s-crumb" class="s-crumb"></div>
+      <div id="s-clock" class="clock"></div>
+    </div>
+    <div class="g-body">
+      <ul id="s-panels" class="g-channels"></ul>
+      <div class="g-list-wrap"><ul id="s-items" class="g-progs"></ul></div>
+      <div class="g-detail">
+        <div id="s-img" class="g-img"></div>
+        <div id="s-dtitle" class="g-dtitle"></div>
+        <div id="s-dmeta" class="g-dmeta"></div>
+        <div id="s-ddesc" class="g-ddesc"></div>
+        <div id="s-dhint" class="g-dhint"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- Upphafsskjár: ekkert spilar fyrr en notandi ýtir á OK -->
   <div id="start" class="start hidden">
     <div id="start-img" class="start-img"></div>
@@ -58,7 +79,7 @@
       <div id="start-title" class="start-title"></div>
       <div id="start-sub" class="start-sub"></div>
       <div class="start-play"><span class="start-btn">▶</span>Ýttu á OK til að horfa</div>
-      <div class="hints">▲▼ Velja rás</div>
+      <div class="hints">▲▼ Velja rás &nbsp;·&nbsp; ◀ Sarpurinn</div>
     </div>
   </div>
 
@@ -67,6 +88,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.20/dist/hls.min.js"></script>
   <script src="/channels.js"></script>
+  <script src="/api/iptv"></script>
   <script src="/tv.js"></script>
 </body>
 </html>

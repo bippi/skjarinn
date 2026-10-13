@@ -1,0 +1,37 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'skjarinn.tv'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'skjarinn.tv'
+        minSdk 21
+        targetSdk 34
+        versionCode 1
+        versionName '1.0'
+    }
+
+    signingConfigs {
+        release {
+            storeFile rootProject.file('skjarinn.keystore')
+            storePassword 'skjarinn'
+            keyAlias 'skjarinn'
+            keyPassword 'skjarinn'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}

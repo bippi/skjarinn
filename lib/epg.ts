@@ -35,7 +35,7 @@ type RuvEvent = {
 };
 
 // RÚV sendir tíma án tímabeltis. Ísland er alltaf UTC+0.
-function toMs(t: string): number {
+export function toMs(t: string): number {
   return Date.parse(/[zZ]|[+-]\d\d:?\d\d$/.test(t) ? t : t + 'Z');
 }
 
