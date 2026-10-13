@@ -161,6 +161,8 @@
       if (hlsOk) attempts.push({ url: urls[i], how: 'hls' });
       if (!canNative && !hlsOk) attempts.push({ url: urls[i], how: 'native' });
     }
+    saveSeen();
+    seen.cur = null;
     var token = {};
     load.current = token;
     state.userPaused = false;
@@ -287,13 +289,72 @@
 
   function playVod(prog, list) {
     if (!prog.vod) { toast('Þessi þáttur er ekki aðgengilegur í tímaflakki'); return; }
+    var r = seenOf(prog), from = r && !r.done && r.pos > 30 ? r.pos - 5 : null;
     state.mode = 'vod'; state.prog = prog; state.progList = list || null;
-    load([prog.vod], null, null);
+    load([prog.vod], from, function () { seen.cur = prog; saveSeen(); });
+    if (from != null) toast('Held áfram frá ' + dur(from) + '  ·  ◀ spólar til baka');
     showBar();
   }
 
+  // ---------- Áhorf ----------
+  // Man hvar var hætt í hverjum þætti (tímaflakk og Sarpur), nýjast fremst, í localStorage sjónvarpsins.
+  var SEEN_KEY = 'skjarinn.seen', SEEN_MAX = 60;
+  var seen = { list: null, cur: null, at: 0 };
+  function seenList() {
+    if (!seen.list) { try { seen.list = JSON.parse(store(SEEN_KEY)) || []; } catch (e) { seen.list = []; } }
+    return seen.list;
+  }
+  function seenOf(p) {
+    var l = seenList();
+    for (var i = 0; p && i < l.length; i++) if (l[i].id === p.id) return l[i];
+    return null;
+  }
+  // seen.cur er þátturinn sem er hlaðinn í spilarann; null á meðan skipt er um straum
+  function saveSeen(done) {
+    var p = seen.cur;
+    if (!p) return;
+    var pos = video.currentTime || 0, len = isFinite(video.duration) && video.duration > 0 ? video.duration : (p.end - p.start) / 1000;
+    var l = seenList(), r = seenOf(p);
+    if (!done && pos < 10 && !r) return; // rétt kíkt á þáttinn
+    if (r) l.splice(l.indexOf(r), 1);
+    r = {
+      id: p.id, title: p.title, subtitle: p.subtitle || null, number: p.number || null, description: p.description || '',
+      image: p.image || null, vod: p.vod, start: p.start, end: p.end, domesticOnly: !!p.domesticOnly, vodExpires: p.vodExpires || null,
+      pos: done ? 0 : Math.round(pos), len: Math.round(len), at: now(),
+      done: !!(done || (r && r.done) || (len > 0 && (pos > len - 90 || pos / len > 0.95)))
+    };
+    l.unshift(r);
+    if (l.length > SEEN_MAX) l.length = SEEN_MAX;
+    seen.at = now();
+    store(SEEN_KEY, JSON.stringify(l));
+  }
+  // Hlutfall séð (0–1), eða -1 ef aldrei horft
+  function seenPct(p) {
+    var r = seenOf(p);
+    if (!r) return -1;
+    return r.done ? 1 : r.len ? Math.min(1, r.pos / r.len) : 0;
+  }
+  function seenTag(p, fallback) {
+    var f = seenPct(p);
+    return f >= 1 ? '✓ Séð' : f >= 0 ? Math.max(1, Math.round(f * 100)) + '% séð' : fallback;
+  }
+  function seenBar(p) {
+    var f = seenPct(p);
+    return f > 0 && f < 1 ? '<i class="pg"><i style="width:' + Math.round(f * 100) + '%"></i></i>' : '';
+  }
+  function seenHint(p) {
+    var r = seenOf(p);
+    if (!r) return null;
+    if (r.done) return 'OK  Horfa aftur (þegar séð)';
+    return r.pos > 30 ? 'OK  Halda áfram frá ' + dur(r.pos) + ' af ' + dur(r.len) : null;
+  }
+  video.addEventListener('timeupdate', function () { if (now() - seen.at > 10000) saveSeen(); });
+  video.addEventListener('pause', function () { saveSeen(); });
+
   // Þegar tímaflakksþáttur klárast: næsti þáttur, eða aftur í beina ef við erum búin að ná henni
   video.addEventListener('ended', function () {
+    saveSeen(true);
+    seen.cur = null;
     if (state.mode !== 'vod' || !state.progList) return;
     var l = state.progList, i = l.indexOf(state.prog), n = l[i + 1];
     if (state.prog.sarpur) { if (n) playVod(n, l); else openSarpur(); return; }
@@ -523,11 +584,11 @@
     if (!l.length) html = '<li class="g-empty">Engin dagskrá fannst fyrir þennan dag.</li>';
     for (var i = 0; i < l.length; i++) {
       var p = l[i], st = progState(p), cls = 'g-prog ' + st, tag = '';
-      if (st === 'past') { tag = p.vod ? 'Tímaflakk' : 'Ekki í boði'; if (!p.vod) cls += ' novod'; }
+      if (st === 'past') { tag = p.vod ? seenTag(p, 'Tímaflakk') : 'Ekki í boði'; if (!p.vod) cls += ' novod'; else if (seenPct(p) >= 1) cls += ' seen'; }
       else if (st === 'now') tag = '● Í beinni';
       if (state.mode === 'vod' && state.prog && state.prog.id === p.id) cls += ' playing';
       if (i === g.idx && g.zone === 'progs') cls += ' focus';
-      html += '<li class="' + cls + '"><span class="t">' + (p.liveOnly ? '' : hhmm(p.start)) + '</span><span class="n">' + esc(p.title) + '</span><span class="s">' + tag + '</span></li>';
+      html += '<li class="' + cls + '"><span class="t">' + (p.liveOnly ? '' : hhmm(p.start)) + '</span><span class="n">' + esc(p.title) + '</span><span class="s">' + tag + '</span>' + (p.vod ? seenBar(p) : '') + '</li>';
     }
     $('g-progs').innerHTML = html;
     scrollGuide();
@@ -557,7 +618,7 @@
     }
     $('g-dmeta').innerHTML = esc(meta);
     $('g-ddesc').innerHTML = esc(p.description || '');
-    if (st === 'past') hint = p.vod ? 'OK  Horfa frá byrjun' : 'RÚV býður ekki upp á þennan þátt eftir á';
+    if (st === 'past') hint = p.vod ? seenHint(p) || 'OK  Horfa frá byrjun' : 'RÚV býður ekki upp á þennan þátt eftir á';
     else if (st === 'now') hint = p.liveOnly ? 'OK  Horfa' : 'OK  Beint   ·   ▶  Frá byrjun';
     else hint = 'Hefst kl. ' + hhmm(p.start);
     if (p.vod && p.domesticOnly && st === 'past') hint += '   (aðeins á Íslandi)';
@@ -619,7 +680,7 @@
 
   // ---------- Sarpurinn (efnisveita RÚV) ----------
   // Vinstri: flokkar. Miðja: þáttaraðir flokksins, eða þættir einnar þáttaraðar (sp.show).
-  var sp = { panels: null, at: 0, panel: 0, zone: 'items', idx: 0, show: null, showIdx: 0, eps: null };
+  var sp = { panels: null, raw: null, at: 0, panel: 0, zone: 'items', idx: 0, show: null, showIdx: 0, eps: null };
   var spCache = {};
   function getJson(url, maxAge, cb) {
     var c = spCache[url];
@@ -636,11 +697,36 @@
     x.send();
   }
 
+  // Þættir sem hefur verið horft á, sem stakir liðir svo OK spili þá beint
+  function historyPanel() {
+    var l = seenList(), items = [];
+    for (var i = 0; i < l.length; i++) {
+      var r = l[i];
+      if (r.vodExpires && Date.parse(r.vodExpires) < now()) continue;
+      items.push({ id: 'h' + r.id, title: r.title, subtitle: r.subtitle, description: r.description, image: r.image, multi: false, count: 1, ep: r, history: true });
+    }
+    return items.length ? { title: 'Nýlega horft', items: items, history: true } : null;
+  }
+  // sp.raw = flokkar af þjóninum; sp.panels = sömu flokkar með „Nýlega horft“ fremst
+  function setPanels() {
+    if (!sp.raw) return;
+    var h = historyPanel(), had = !!(sp.panels && sp.panels[0].history);
+    if (sp.panels) {
+      if (h && !had) sp.panel++;
+      else if (!h && had) sp.panel = Math.max(0, sp.panel - 1);
+    }
+    sp.panels = h ? [h].concat(sp.raw) : sp.raw;
+    sp.panel = Math.min(sp.panel, sp.panels.length - 1);
+    if (!sp.show) sp.idx = sp.panels[sp.panel].history ? 0 : Math.min(sp.idx, sp.panels[sp.panel].items.length - 1);
+  }
+
   function openSarpur() {
     if (state.view === 'guide') $('guide').className = 'guide hidden';
     state.view = 'sarpur';
     $('bar').className = 'bar hidden';
     $('sarpur').className = 'guide sarpur';
+    saveSeen();
+    setPanels();
     if (sp.panels) renderSarpur(); // gamall listi strax, sá nýi kemur í staðinn
     if (sp.panels && now() - sp.at < 1800000) return;
     if (!sp.panels) { $('s-panels').innerHTML = ''; $('s-items').innerHTML = '<li class="g-empty">Sæki Sarpinn…</li>'; renderSarpurDetail(); }
@@ -649,9 +735,8 @@
         if (!sp.panels && state.view === 'sarpur') $('s-items').innerHTML = '<li class="g-empty">Náði ekki sambandi við Sarpinn.</li>';
         return;
       }
-      sp.panels = d.panels; sp.at = now();
-      sp.panel = Math.min(sp.panel, sp.panels.length - 1);
-      if (!sp.show) sp.idx = Math.min(sp.idx, sp.panels[sp.panel].items.length - 1);
+      sp.raw = d.panels; sp.at = now();
+      setPanels();
       if (state.view === 'sarpur') renderSarpur();
     });
   }
@@ -687,10 +772,13 @@
       if (sp.show) {
         t = it.start ? dateLabel(it.start) : '';
         name = it.subtitle || (it.number ? 'Þáttur ' + it.number : it.title);
-        tag = Math.round((it.end - it.start) / 60000) + ' mín.';
+        tag = seenTag(it, Math.round((it.end - it.start) / 60000) + ' mín.');
       } else if (it.multi && it.count > 1) tag = it.count + ' þættir';
-      var cls = 'g-prog' + (isPlaying(sp.show ? it : !it.multi && it.ep) ? ' playing' : '') + (i === sp.idx && sp.zone === 'items' ? ' focus' : '');
-      html += '<li class="' + cls + '"><span class="t">' + esc(t) + '</span><span class="n">' + esc(name) + '</span><span class="s">' + esc(tag) + '</span></li>';
+      else if (it.ep) tag = seenTag(it.ep, '');
+      if (it.history && it.subtitle) name = it.title + ' – ' + it.subtitle;
+      var ep = sp.show ? it : !it.multi && it.ep;
+      var cls = 'g-prog' + (isPlaying(ep) ? ' playing' : '') + (ep && seenPct(ep) >= 1 ? ' seen' : '') + (i === sp.idx && sp.zone === 'items' ? ' focus' : '');
+      html += '<li class="' + cls + '"><span class="t">' + esc(t) + '</span><span class="n">' + esc(name) + '</span><span class="s">' + esc(tag) + '</span>' + (ep ? seenBar(ep) : '') + '</li>';
     }
     $('s-items').innerHTML = html;
     scrollList($('s-items'), sp.idx);
@@ -705,6 +793,7 @@
     $('s-dtitle').innerHTML = esc(sp.show ? (it.subtitle || it.title) : it.title);
     if (sp.show) meta.push(it.title);
     else if (it.subtitle) meta.push(it.subtitle);
+    if (it.history) meta.push('Horft ' + dateLabel(it.ep.at));
     if (ep && ep.number && sp.show) meta.push('Þáttur ' + ep.number);
     if (ep && ep.start) meta.push(dateLabel(ep.start));
     if (ep && ep.end > ep.start) meta.push(Math.round((ep.end - ep.start) / 60000) + ' mín.');
@@ -714,7 +803,7 @@
     if (sp.zone === 'panels') hint = '▶  Skoða flokkinn';
     else if (!ep) hint = 'OK  Sjá þætti';
     else {
-      hint = 'OK  Horfa';
+      hint = seenHint(ep) || 'OK  Horfa';
       if (ep.domesticOnly) hint += '   (aðeins á Íslandi)';
       if (ep.vodExpires) hint += '   ·   Í boði til ' + dateLabel(Date.parse(ep.vodExpires));
     }

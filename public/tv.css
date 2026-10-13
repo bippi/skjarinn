@@ -100,8 +100,15 @@ ul { list-style: none; margin: 0; padding: 0; }
 .g-progs { position: absolute; left: 0; right: 0; top: 0; }
 .g-prog {
   display: flex; align-items: center; padding: .85vw 1.1vw; border-radius: .5vw;
-  border-left: .3vw solid transparent; margin-bottom: .2vw;
+  border-left: .3vw solid transparent; margin-bottom: .2vw; position: relative;
 }
+.g-prog .pg { position: absolute; left: 1.1vw; right: 1.1vw; bottom: .25vw; height: .25vw; background: rgba(255,255,255,.15); border-radius: .2vw; }
+.g-prog .pg i { display: block; height: 100%; background: #f2b33d; border-radius: .2vw; }
+.g-prog.focus .pg { background: rgba(0,0,0,.15); }
+.g-prog.focus .pg i { background: #111; }
+.g-prog.seen .n { color: #8f897e; }
+.g-prog.seen .s { color: #7fbf7f; }
+.g-prog.focus.seen .n, .g-prog.focus.seen .s { color: #111; }
 .g-prog .t { font-size: 1.35vw; width: 5.4vw; color: #8f897e; font-variant-numeric: tabular-nums; }
 .g-prog .n { flex: 1; font-size: 1.45vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .g-prog .s { font-size: 1vw; font-weight: 700; letter-spacing: .08vw; margin-left: 1vw; text-transform: uppercase; white-space: nowrap; }
