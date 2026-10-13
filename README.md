@@ -16,6 +16,7 @@ Sjónvarpsviðmót fyrir vafrann í Samsung-sjónvarpinu: rásaskipti, dagskrá 
 | `public/index.html`, `tv.css`, `tv.js` | Sjálft viðmótið – hreint ES5, ekkert React, svo það keyri í Tizen 2017 vafranum |
 | `public/channels.js`                   | Rásalistinn – breyttu og endurhlaðaðu, engin endurbygging                       |
 | `app/api/iptv/route.ts`, `lib/m3u.ts`  | Les M3U frá IPTV-áskrift og bætir rásunum aftan við listann                     |
+| `app/api/sarpur/route.ts`, `lib/sarpur.ts` | Sarpur RÚV: flokkar (`/api/sarpur`) og þættir (`/api/sarpur?program=ID`)    |
 
 ## Keyra
 

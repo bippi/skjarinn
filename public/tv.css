@@ -124,6 +124,14 @@ ul { list-style: none; margin: 0; padding: 0; }
 .g-ddesc { font-size: 1.3vw; line-height: 1.45; color: #d9d3c7; margin-top: 1vw; max-height: 11.5vw; overflow: hidden; }
 .g-dhint { font-size: 1.15vw; color: #f2b33d; margin-top: 1.2vw; font-weight: 600; }
 
+/* ---------- Sarpurinn (notar sömu klasa og dagskráin) ---------- */
+.g-sarpur { margin-right: 2vw; color: #f2b33d; border-color: rgba(242,179,61,.45); }
+.sarpur .g-channels { width: 24vw; }
+.sarpur .g-prog .t:empty { display: none; }
+.sarpur .g-prog .s { color: #8f897e; }
+.sarpur .g-prog.focus .s { color: #111; }
+.s-crumb { flex: 1; font-size: 1.4vw; color: #b5aea1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
 /* ---------- Upphafsskjár ---------- */
 .start { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #0b0d12; }
 .start-img { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #0b0d12 center / cover no-repeat; }
