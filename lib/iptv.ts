@@ -22,6 +22,12 @@ async function download(src: string): Promise<Cache> {
   });
   if (!res.ok) throw new Error(`IPTV-þjónn svaraði ${res.status}`);
   const fresh = { at: Date.now(), channels: parseM3u(await res.text()) };
+  // Þjónustan sendir stundum hálfan lista (slitið niðurhal): halda þá þeim gamla,
+  // nema hann sé orðinn sólarhrings gamall og minnkunin því líklega raunveruleg
+  const old = cache;
+  if (old && fresh.channels.length < old.channels.length / 2 && fresh.at - old.at < 24 * TTL) {
+    throw new Error(`fékk bara ${fresh.channels.length} rásir (áður ${old.channels.length}) – held gamla listanum`);
+  }
   try {
     await mkdir(dirname(FILE), { recursive: true });
     await writeFile(FILE, JSON.stringify(fresh));

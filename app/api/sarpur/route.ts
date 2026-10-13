@@ -6,6 +6,10 @@ import { mapFeatured, mapProgramEpisodes } from '../../../lib/sarpur';
 
 const MAX_AGE = 600;
 
+// Forsíða RÚV er yfir 6 MB, of stór fyrir gagnaskyndiminni Next (2 MB), svo
+// granna útgáfan er geymd hér í minni
+const cache = new Map<string, { at: number; body: unknown }>();
+
 export async function GET(req: Request) {
   const program = new URL(req.url).searchParams.get('program');
   if (program !== null && !/^\d{1,9}$/.test(program)) {
@@ -16,13 +20,19 @@ export async function GET(req: Request) {
     : 'https://api.ruv.is/api/programs/featured/tv';
 
   try {
-    const res = await fetch(src, { headers: { accept: 'application/json' }, next: { revalidate: MAX_AGE } });
-    if (!res.ok) {
-      return Response.json({ error: `RÚV svaraði ${res.status}` }, { status: 502 });
+    let hit = cache.get(src);
+    if (!hit || Date.now() - hit.at > MAX_AGE * 1000) {
+      const res = await fetch(src, { headers: { accept: 'application/json' }, cache: 'no-store' });
+      if (!res.ok) {
+        if (!hit) return Response.json({ error: `RÚV svaraði ${res.status}` }, { status: 502 });
+      } else {
+        const json = await res.json();
+        hit = { at: Date.now(), body: program ? mapProgramEpisodes(json) : { panels: mapFeatured(json) } };
+        cache.set(src, hit);
+        if (cache.size > 200) cache.delete(cache.keys().next().value!);
+      }
     }
-    const json = await res.json();
-    const body = program ? mapProgramEpisodes(json) : { panels: mapFeatured(json) };
-    return Response.json(body, {
+    return Response.json(hit.body, {
       headers: {
         'access-control-allow-origin': '*',
         'cache-control': `public, s-maxage=${MAX_AGE}, stale-while-revalidate=600`,
