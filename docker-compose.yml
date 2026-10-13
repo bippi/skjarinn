@@ -1,0 +1,27 @@
+services:
+  skjarinn:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file:
+      - path: .env.local
+        required: false
+    volumes:
+      - iptv-cache:/app/.cache   # IPTV-listinn, svo endurræsing sé tafarlaus
+    restart: unless-stopped
+
+  # Byggir Shield-appið (APK) án Android Studio: docker compose run --rm apk
+  apk:
+    profiles: ["android"]
+    build: ./android
+    working_dir: /src
+    volumes:
+      - ./android:/src
+      - gradle-cache:/root/.gradle
+      - adb-keys:/root/.android
+    command: ["bash", "build.sh"]
+
+volumes:
+  iptv-cache:
+  gradle-cache:
+  adb-keys:

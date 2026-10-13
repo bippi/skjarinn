@@ -460,13 +460,35 @@
     var days = $('g-days'), sel = days.children[g.day + DAYS_BACK];
     if (sel) days.scrollLeft = Math.max(0, sel.offsetLeft - days.offsetWidth / 2);
 
+    // Flokkafyrirsagnir þegar rásir eru í fleiri en einum flokki (t.d. IPTV)
     html = '';
+    var grouped = groupOf(0) !== groupOf(CHANNELS.length - 1), last = null;
     for (var i = 0; i < CHANNELS.length; i++) {
       var c = CHANNELS[i];
-      html += '<li class="g-ch' + (i === g.ch ? ' sel' : '') + (i === g.ch && g.zone === 'channels' ? ' focus' : '') + '"><span class="num">' + c.num + '</span>' + esc(c.name) + '</li>';
+      if (grouped && groupOf(i) !== last) {
+        last = groupOf(i);
+        html += '<li class="g-grp"><span>' + esc(last) + '</span><span class="g-grp-n">' + groupSize(i) + '</span></li>';
+      }
+      html += '<li class="g-ch' + (i === g.ch ? ' sel' : '') + (i === g.ch && g.zone === 'channels' ? ' focus' : '') + '"><span class="num">' + c.num + '</span><span class="nm">' + esc(c.name) + '</span></li>';
     }
-    $('g-channels').innerHTML = html;
+    var box = $('g-channels');
+    box.innerHTML = html;
+    $('guide').className = 'guide' + (g.zone === 'channels' ? ' zone-ch' : '');
+    // Halda valinni rás fyrir miðju þegar listinn er lengri en skjárinn
+    var cur = box.querySelector('.g-ch.sel');
+    if (cur) box.scrollTop = Math.max(0, cur.offsetTop - box.clientHeight / 2 + cur.offsetHeight / 2);
     $('g-clock').innerHTML = hhmm(now());
+  }
+
+  function groupOf(i) { return CHANNELS[i].group || 'Opnar rásir'; }
+  function groupSize(i) { var n = 0; for (var j = i; j < CHANNELS.length && groupOf(j) === groupOf(i); j++) n++; return n; }
+  // Fyrsta rás í næsta (dir=1) eða þessum/fyrri (dir=-1) flokki
+  function groupJump(i, dir) {
+    var grp = groupOf(i), j = i;
+    if (dir > 0) { while (j < CHANNELS.length - 1 && groupOf(j) === grp) j++; return j; }
+    if (j > 0 && groupOf(j - 1) !== grp) { j--; grp = groupOf(j); } // efst í flokki: í fyrri flokk
+    while (j > 0 && groupOf(j - 1) === grp) j--;
+    return j;
   }
 
   function progState(p) {
@@ -543,6 +565,10 @@
     } else if (g.zone === 'channels') {
       if (is(k, 'UP') && g.ch > 0) { g.ch--; loadGuideList(g.day === 0 ? now() : null); }
       else if (is(k, 'DOWN') && g.ch < CHANNELS.length - 1) { g.ch++; loadGuideList(g.day === 0 ? now() : null); }
+      else if (is(k, 'CH_UP') || is(k, 'CH_DOWN')) {
+        var to = groupJump(g.ch, is(k, 'CH_DOWN') ? 1 : -1);
+        if (to !== g.ch) { g.ch = to; loadGuideList(g.day === 0 ? now() : null); }
+      }
       else if (is(k, 'RIGHT')) { g.zone = 'progs'; renderGuideFrame(); renderGuideList(); }
       else if (is(k, 'OK')) { closeGuide(); playLive(g.ch); }
     } else if (g.zone === 'days') {
