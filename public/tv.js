@@ -163,6 +163,7 @@
     }
     saveSeen();
     seen.cur = null;
+    rate.bytes = null; rate.bps = 0;
     var token = {};
     load.current = token;
     state.userPaused = false;
@@ -426,6 +427,30 @@
     el.innerHTML = k === 'foreign' ? 'Erlendur straumur' : k === 'domestic' ? 'Innlendur straumur' : 'Sjálfval RÚV';
   }
 
+  // Upplausn og bitahraði. Bitahraðinn er mældur út frá afkóðuðum bætum (Chromium/Tizen),
+  // annars uppgefinn bitahraði hls.js-gæðaþrepsins.
+  var rate = { bytes: null, at: 0, bps: 0 };
+  function sampleRate() {
+    if (video.webkitVideoDecodedByteCount == null || video.paused) { rate.bytes = null; return; }
+    var b = video.webkitVideoDecodedByteCount + (video.webkitAudioDecodedByteCount || 0), t = now();
+    if (rate.bytes != null && b >= rate.bytes && t - rate.at >= 2000) {
+      var bps = (b - rate.bytes) * 8000 / (t - rate.at);
+      rate.bps = rate.bps ? rate.bps * 0.6 + bps * 0.4 : bps;
+    }
+    if (rate.bytes == null || b < rate.bytes || t - rate.at >= 2000) { rate.bytes = b; rate.at = t; }
+  }
+  function mbps(bps) { return (bps / 1e6).toFixed(1).replace('.', ',') + ' Mb/s'; }
+  function renderQuality() {
+    var el = $('bar-q'), parts = [], h = video.videoHeight;
+    if (h) parts.push(h + 'p');
+    var lv = hls && hls.levels && hls.currentLevel >= 0 ? hls.levels[hls.currentLevel] : null;
+    if (rate.bps) parts.push(mbps(rate.bps));
+    else if (lv && lv.bitrate) parts.push(mbps(lv.bitrate));
+    if (!parts.length) { el.className = 'q hidden'; return; }
+    el.className = 'q';
+    el.innerHTML = parts.join(' · ');
+  }
+
   function setBadge(cls, text) { var b = $('bar-badge'); b.className = 'badge ' + cls; b.innerHTML = esc(text); }
 
   function renderBar() {
@@ -480,6 +505,7 @@
     $('bar-status').innerHTML = esc(status);
     $('bar-next').innerHTML = esc(next);
     renderSrc();
+    renderQuality();
   }
   function dayOffsetOf(ms) { return Math.floor((ms - Date.parse(isoDate(0) + 'T00:00:00Z')) / 864e5); }
 
@@ -939,6 +965,7 @@
 
   // Uppfæra klukku/stiku reglulega
   setInterval(function () {
+    sampleRate();
     if (state.view === 'guide') { $('g-clock').innerHTML = hhmm(now()); }
     else if (state.view === 'sarpur') { $('s-clock').innerHTML = hhmm(now()); }
     else if (barVisible()) renderBar();

@@ -35,6 +35,8 @@ ul { list-style: none; margin: 0; padding: 0; }
 .src.auto { color: #cfc9bd; border-color: #6b6559; }
 .src.foreign { color: #fff; background: #b4471f; border-color: #b4471f; }
 .src.hidden { display: none; }
+/* Upplausn og bitahraði straumsins */
+.q { margin-left: .8vw; font-size: .95vw; font-weight: 600; color: #b5aea1; letter-spacing: .03vw; }
 .bar-top .clock { margin-left: auto; }
 .bar-title { font-size: 3.1vw; font-weight: 700; margin-top: .9vw; line-height: 1.1; }
 .bar-sub { font-size: 1.4vw; color: #b5aea1; margin-top: .3vw; min-height: 1.6vw; }
