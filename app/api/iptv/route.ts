@@ -60,6 +60,7 @@ export async function GET(req: Request) {
         name: c.name.replace(/^[A-Z]{2,3}\s*[:|]\s*/, '') || c.name,
         group: c.group || 'IPTV',
         live: c.live,
+        logo: c.logo || undefined,
       }));
 
     // Númerað frá næsta hundraði fyrir ofan rásirnar í channels.js (101, 102, …)

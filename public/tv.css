@@ -63,13 +63,6 @@ ul { list-style: none; margin: 0; padding: 0; }
 .g-head { display: flex; align-items: center; height: 3.6vw; }
 .g-logo { font-size: 1.9vw; font-weight: 800; letter-spacing: .05vw; margin-right: 3vw; }
 .g-logo:after { content: ""; display: inline-block; width: .6vw; height: .6vw; border-radius: 50%; background: #e0352b; margin-left: .3vw; }
-.g-days { display: flex; flex: 1; overflow: hidden; }
-.g-day {
-  font-size: 1.3vw; padding: .5vw 1.1vw; margin-right: .5vw; border-radius: 2vw;
-  color: #8f897e; white-space: nowrap; border: .12vw solid transparent;
-}
-.g-day.sel { color: #f2efe8; border-color: rgba(242,239,232,.35); }
-.g-day.focus { background: #f2efe8; color: #111; border-color: #f2efe8; }
 
 .g-body { flex: 1; display: flex; margin-top: 1.8vw; min-height: 0; }
 
@@ -78,8 +71,6 @@ ul { list-style: none; margin: 0; padding: 0; }
   width: 21vw; margin-right: 1.4vw; position: relative; overflow: hidden;
   -webkit-transition: width .15s; transition: width .15s;
 }
-.zone-ch .g-channels { width: 34vw; }
-.zone-ch .g-detail { display: none; }
 .g-grp {
   display: flex; align-items: baseline;
   font-size: 1.05vw; font-weight: 700; letter-spacing: .08vw; text-transform: uppercase;
@@ -133,8 +124,78 @@ ul { list-style: none; margin: 0; padding: 0; }
 .g-ddesc { font-size: 1.3vw; line-height: 1.45; color: #d9d3c7; margin-top: 1vw; max-height: 11.5vw; overflow: hidden; }
 .g-dhint { font-size: 1.15vw; color: #f2b33d; margin-top: 1.2vw; font-weight: 600; }
 
+/* ---------- Dagskrá: tímalína ----------
+   Skjárinn er 56.25vw á hæð (16:9): forsýn 18vw + haus + 8 línur af 3.65vw */
+.epg { position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 1; background: #0b0d12; display: flex; }
+#video.pv { z-index: 2; border-radius: .6vw; }
+.in-guide .spinner { display: none; }
+
+.e-rail { width: 5.2vw; flex: none; background: #07080c; display: flex; flex-direction: column; align-items: center; padding-top: 2.4vw; }
+.e-logo-s { font-size: 2vw; font-weight: 800; margin-bottom: 2.4vw; }
+.e-logo-s:after { content: ""; display: inline-block; width: .5vw; height: .5vw; border-radius: 50%; background: #e0352b; margin-left: .15vw; }
+.e-rail li { width: 3.2vw; height: 3.2vw; margin-bottom: 1vw; border-radius: .5vw; color: #6b6559; display: flex; align-items: center; justify-content: center; }
+.e-rail svg { width: 1.7vw; height: 1.7vw; fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.e-rail li.sel { color: #f2efe8; }
+.e-rail li.focus { background: #f2efe8; color: #111; }
+
+.e-groups { width: 17vw; flex: none; padding: 2.4vw .8vw 2vw 1vw; overflow: hidden; box-sizing: border-box; height: 100%; }
+.e-grp { display: flex; align-items: baseline; font-size: 1.3vw; font-weight: 600; padding: .6vw .9vw; margin-bottom: .15vw; border-radius: .4vw; color: #a39d92; }
+.e-grp .nm { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.e-grp .n { margin-left: .6vw; font-size: .95vw; color: #6b6559; }
+.e-grp.sel { color: #f2efe8; background: rgba(255,255,255,.08); }
+.e-grp.focus { background: #f2efe8; color: #111; }
+.e-grp.focus .n { color: #5b574f; }
+
+.e-main { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 2.4vw 3vw 1.6vw 1vw; }
+.e-top { display: flex; height: 18vw; flex: none; }
+.e-pv { width: 32vw; height: 18vw; flex: none; background: #000; border-radius: .6vw; }
+.e-info { flex: 1; min-width: 0; margin-left: 2vw; overflow: hidden; }
+.e-ich { display: flex; align-items: center; font-size: 1.2vw; font-weight: 600; color: #cfc9bd; }
+.e-ich .num { font-size: .95vw; min-width: 2.4vw; }
+.e-ititle { font-size: 2.2vw; font-weight: 700; margin-top: .7vw; line-height: 1.15; max-height: 5.1vw; overflow: hidden; }
+.e-itime { display: flex; align-items: center; font-size: 1.25vw; color: #b5aea1; margin-top: .6vw; min-height: 1.5vw; font-variant-numeric: tabular-nums; }
+#e-ileft { margin-left: 1vw; }
+.e-ibar { width: 6vw; height: .3vw; margin-left: 1vw;background: rgba(255,255,255,.18); border-radius: .2vw; }
+.e-ibar i { display: block; height: 100%; background: #f2efe8; border-radius: .2vw; }
+.e-isub { font-size: 1.2vw; color: #b5aea1; margin-top: .3vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.e-idesc { font-size: 1.15vw; line-height: 1.4; color: #d9d3c7; margin-top: .5vw; max-height: 4.9vw; overflow: hidden; }
+.e-ihint { font-size: 1.05vw; color: #f2b33d; font-weight: 600; margin-top: .7vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.e-head { display: flex; align-items: flex-end; flex: none; height: 2.2vw; margin-top: 1.3vw; padding-bottom: .4vw; border-bottom: .1vw solid rgba(255,255,255,.12); }
+.e-date { width: 17vw; flex: none; font-size: 1.2vw; font-weight: 600; color: #f2b33d; white-space: nowrap; }
+.e-ticks { flex: 1; position: relative; height: 100%; }
+.e-ticks span { position: absolute; bottom: 0; padding-left: .4vw; font-size: 1.15vw; color: #b5aea1; border-left: .1vw solid rgba(255,255,255,.25); line-height: 1; }
+
+.e-grid { flex: 1; min-height: 0; position: relative; overflow: hidden; margin-top: .5vw; }
+.e-row { display: flex; height: 3.3vw; margin-bottom: .35vw; }
+.e-ch { width: 17vw; flex: none; display: flex; align-items: center; padding-right: .8vw; box-sizing: border-box; font-size: 1.25vw; font-weight: 600; color: #8f897e; }
+.e-ch .num { flex: none; font-size: .95vw; min-width: 2.6vw; margin-right: .6vw; padding: .05vw .3vw; border-color: #5b574f; }
+.e-ch .nm { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.e-logo { width: 3.4vw; height: 2.3vw; flex: none; margin-right: .6vw; background: center / contain no-repeat; }
+.e-row.sel .e-ch { color: #f2efe8; }
+.e-row.on .e-ch .num { border-color: #e0352b; color: #ff6a5f; }
+.e-progs { flex: 1; position: relative; }
+
+.gb {
+  position: absolute; top: 0; bottom: 0; padding: 0 .8vw; border-radius: .3vw; overflow: hidden;
+  display: flex; align-items: center; background: #161a22; color: #d9d3c7; font-size: 1.2vw; box-sizing: border-box;
+}
+.gb span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gb.past { color: #8f897e; }
+.gb.past.novod { opacity: .45; }
+.gb.now { background: #232833; color: #f2efe8; box-shadow: inset .3vw 0 0 #e0352b; }
+.gb.future { color: #b5aea1; }
+.gb.none { color: #5b574f; }
+.gb.seen span:after { content: " \2713"; color: #7fbf7f; }
+.gb.playing span:before { content: "\25B6  "; color: #f2b33d; }
+.gb .pg { position: absolute; left: .8vw; right: .8vw; bottom: .3vw; height: .22vw; background: rgba(255,255,255,.15); border-radius: .2vw; }
+.gb .pg i { display: block; height: 100%; background: #f2b33d; border-radius: .2vw; }
+.gb.focus { background: #f2efe8; color: #111; opacity: 1; box-shadow: none; }
+.gb.focus.seen span:after, .gb.focus.playing span:before { color: #111; }
+.e-nowwrap { position: absolute; top: 0; bottom: 0; left: 17vw; right: 0; pointer-events: none; }
+.e-now { position: absolute; top: 0; bottom: 0; width: .2vw; margin-left: -.1vw; background: #e0352b; }
+
 /* ---------- Sarpurinn (notar sömu klasa og dagskráin) ---------- */
-.g-sarpur { margin-right: 2vw; color: #f2b33d; border-color: rgba(242,179,61,.45); }
 .sarpur .g-channels { width: 24vw; }
 .sarpur .g-prog .t:empty { display: none; }
 .sarpur .g-prog .s { color: #8f897e; }
@@ -160,7 +221,7 @@ ul { list-style: none; margin: 0; padding: 0; }
 
 /* ---------- Annað ---------- */
 .toast {
-  position: absolute; top: 3vw; left: 50%; transform: translateX(-50%); -webkit-transform: translateX(-50%);
+  position: absolute; z-index: 10; top: 3vw; left: 50%; transform: translateX(-50%); -webkit-transform: translateX(-50%);
   background: rgba(20,22,28,.95); border: .1vw solid rgba(255,255,255,.15);
   padding: 1vw 2vw; border-radius: .6vw; font-size: 1.4vw; max-width: 60vw; text-align: center;
 }

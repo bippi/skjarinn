@@ -30,24 +30,31 @@
     <div class="hints">▲▼ Rás &nbsp;·&nbsp; ◀▶ Spóla &nbsp;·&nbsp; OK Dagskrá &nbsp;·&nbsp; ⏎ Til baka: Beint</div>
   </div>
 
-  <!-- Dagskrá / tímaflakk -->
-  <div id="guide" class="guide hidden">
-    <div class="g-head">
-      <div class="g-logo">Skjárinn</div>
-      <div id="g-sarpur" class="g-day g-sarpur">Sarpurinn</div>
-      <div id="g-days" class="g-days"></div>
-      <div id="g-clock" class="clock"></div>
+  <!-- Dagskrá: táknastika, flokkar, forsýn og tímalína -->
+  <div id="epg" class="epg hidden">
+    <div class="e-rail">
+      <div class="e-logo-s">S</div>
+      <ul id="e-rail">
+        <li title="Dagskrá"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11"/></svg></li>
+        <li title="Sarpurinn"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9.5v5l4.5-2.5z"/></svg></li>
+        <li title="Horfa"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></li>
+      </ul>
     </div>
-    <div class="g-body">
-      <ul id="g-channels" class="g-channels"></ul>
-      <div class="g-list-wrap"><ul id="g-progs" class="g-progs"></ul></div>
-      <div class="g-detail">
-        <div id="g-img" class="g-img"></div>
-        <div id="g-dtitle" class="g-dtitle"></div>
-        <div id="g-dmeta" class="g-dmeta"></div>
-        <div id="g-ddesc" class="g-ddesc"></div>
-        <div id="g-dhint" class="g-dhint"></div>
+    <ul id="e-groups" class="e-groups"></ul>
+    <div class="e-main">
+      <div class="e-top">
+        <div id="e-pv" class="e-pv"></div>
+        <div class="e-info">
+          <div id="e-ich" class="e-ich"></div>
+          <div id="e-ititle" class="e-ititle"></div>
+          <div class="e-itime"><span id="e-itime"></span><span id="e-ibar" class="e-ibar"><i></i></span><span id="e-ileft"></span></div>
+          <div id="e-isub" class="e-isub"></div>
+          <div id="e-idesc" class="e-idesc"></div>
+          <div id="e-ihint" class="e-ihint"></div>
+        </div>
       </div>
+      <div class="e-head"><div id="e-date" class="e-date"></div><div id="e-ticks" class="e-ticks"></div></div>
+      <div id="e-grid" class="e-grid"></div>
     </div>
   </div>
 

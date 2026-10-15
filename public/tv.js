@@ -395,6 +395,7 @@
   // ---------- Upplýsingastika ----------
   var barTimer = null;
   function showBar(sticky) {
+    if (state.view !== 'watch') return;
     $('bar').className = 'bar';
     renderBar();
     clearTimeout(barTimer);
@@ -509,199 +510,296 @@
   }
   function dayOffsetOf(ms) { return Math.floor((ms - Date.parse(isoDate(0) + 'T00:00:00Z')) / 864e5); }
 
-  // ---------- Dagskrárvalmynd ----------
-  var g = { ch: 0, day: 0, idx: 0, zone: 'progs', list: [], scroll: 0 };
+  // ---------- Dagskrá: tímalína ----------
+  // Vinstri: táknastika og rásaflokkar. Efst: myndin sem spilar (sjálfur spilarinn, færður í gluggann)
+  // og valinn þáttur. Neðst: rásir flokksins í línum og þættir sem kassar á tímalínu.
+  // OK á rás/þátt spilar hann í glugganum; OK aftur (eða ▶) fer á allan skjáinn.
+  var SLOT = 1800000, WIN = 4 * SLOT, DAY = 864e5; // hálftímar; tveir tímar sjást í einu
+  var RAIL = ['guide', 'sarpur', 'watch'];
+  var g = { zone: 'grid', ch: 0, t: 0, win: 0, top: 0, rows: 8, rail: 0, epg: {}, min: 0 };
+  var GROUPS = null;
 
-  function openGuide() {
-    state.view = 'guide';
-    hideSarpur();
-    $('bar').className = 'bar hidden';
-    $('guide').className = 'guide';
-    g.ch = state.ch; g.zone = 'progs';
-    var focusT = state.mode === 'vod' && state.prog ? state.prog.start : now() - behindLive() * 1000;
-    g.day = Math.max(-DAYS_BACK, Math.min(DAYS_FWD, dayOffsetOf(focusT)));
-    loadGuideList(focusT);
-  }
-  function closeGuide() {
-    state.view = 'watch';
-    $('guide').className = 'guide hidden';
-    showBar();
-  }
-
-  function loadGuideList(focusT) {
-    var ch = CHANNELS[g.ch];
-    renderGuideFrame();
-    if (!ch.epg) {
-      g.list = [{ id: 'live', title: 'Bein útsending', start: 0, end: 0, liveOnly: true, description: 'Engin dagskrá eða tímaflakk í boði fyrir ' + ch.name + '.' }];
-      g.idx = 0; renderGuideList(); return;
-    }
-    $('g-progs').innerHTML = '<li class="g-empty">Sæki dagskrá…</li>';
-    var reqCh = g.ch, reqDay = g.day;
-    getEpg(ch, g.day, function (list) {
-      if (reqCh !== g.ch || reqDay !== g.day) return;
-      g.list = list;
-      var i = focusT != null ? findAt(list, focusT) : -1;
-      if (i < 0) i = g.day === 0 ? findAt(list, now()) : 0;
-      if (i < 0) i = 0;
-      g.idx = i; g.scroll = null;
-      renderGuideList();
-    });
-  }
-
-  function renderGuideFrame() {
-    var html = '', d;
-    for (d = -DAYS_BACK; d <= DAYS_FWD; d++) {
-      html += '<div class="g-day' + (d === g.day ? ' sel' : '') + (d === g.day && g.zone === 'days' ? ' focus' : '') + '">' + esc(dayLabel(d)) + '</div>';
-    }
-    $('g-days').innerHTML = html;
-    // haldið "í dag" sýnilegu: skruna dögum þannig að valinn dagur sjáist
-    var days = $('g-days'), sel = days.children[g.day + DAYS_BACK];
-    if (sel) days.scrollLeft = Math.max(0, sel.offsetLeft - days.offsetWidth / 2);
-    $('g-sarpur').className = 'g-day g-sarpur' + (g.zone === 'sarpur' ? ' focus' : '');
-
-    // Rásalistinn er byggður einu sinni (hann getur verið þúsundir lína); eftir það er
-    // bara valin lína færð til
-    var box = $('g-channels');
-    if (!chEls) buildChannelList(box);
-    if (chSel) chSel.className = 'g-ch';
-    chSel = chEls[g.ch];
-    chSel.className = 'g-ch sel' + (g.zone === 'channels' ? ' focus' : '');
-    $('guide').className = 'guide' + (g.zone === 'channels' ? ' zone-ch' : '');
-    // Halda valinni rás fyrir miðju þegar listinn er lengri en skjárinn
-    box.scrollTop = Math.max(0, chSel.offsetTop - box.clientHeight / 2 + chSel.offsetHeight / 2);
-    $('g-clock').innerHTML = hhmm(now());
-  }
-
-  var chEls = null, chSel = null;
-  // Flokkafyrirsagnir þegar rásir eru í fleiri en einum flokki (t.d. IPTV)
-  function buildChannelList(box) {
-    var html = '', grouped = groupOf(0) !== groupOf(CHANNELS.length - 1);
-    for (var i = 0; i < CHANNELS.length; i++) {
-      if (grouped && (i === 0 || groupOf(i) !== groupOf(i - 1))) {
-        html += '<li class="g-grp"><span>' + esc(groupOf(i)) + '</span><span class="g-grp-n">' + groupSize(i) + '</span></li>';
-      }
-      html += '<li class="g-ch"><span class="num">' + CHANNELS[i].num + '</span><span class="nm">' + esc(CHANNELS[i].name) + '</span></li>';
-    }
-    box.innerHTML = html;
-    chEls = box.querySelectorAll('.g-ch');
-  }
-
+  function floorSlot(ms) { return Math.floor(ms / SLOT) * SLOT; }
   function groupOf(i) { return CHANNELS[i].group || 'Opnar rásir'; }
-  function groupSize(i) { var n = 0; for (var j = i; j < CHANNELS.length && groupOf(j) === groupOf(i); j++) n++; return n; }
-  // Fyrsta rás í næsta (dir=1) eða þessum/fyrri (dir=-1) flokki
-  function groupJump(i, dir) {
-    var grp = groupOf(i), j = i;
-    if (dir > 0) { while (j < CHANNELS.length - 1 && groupOf(j) === grp) j++; return j; }
-    if (j > 0 && groupOf(j - 1) !== grp) { j--; grp = groupOf(j); } // efst í flokki: í fyrri flokk
-    while (j > 0 && groupOf(j - 1) === grp) j--;
-    return j;
+  function groups() {
+    if (GROUPS) return GROUPS;
+    GROUPS = [];
+    for (var i = 0; i < CHANNELS.length; i++) {
+      if (i === 0 || groupOf(i) !== groupOf(i - 1)) GROUPS.push({ name: groupOf(i), first: i, n: 0 });
+      GROUPS[GROUPS.length - 1].n++;
+    }
+    return GROUPS;
   }
-
   function progState(p) {
-    if (p.liveOnly) return 'now';
     var t = now();
     if (p.end <= t) return 'past';
     if (p.start <= t) return 'now';
     return 'future';
   }
+  function groupIdx(ch) { var l = groups(); for (var i = l.length - 1; i > 0; i--) if (l[i].first <= ch) return i; return 0; }
 
-  function renderGuideList() {
-    var html = '', l = g.list;
-    if (!l.length) html = '<li class="g-empty">Engin dagskrá fannst fyrir þennan dag.</li>';
-    for (var i = 0; i < l.length; i++) {
-      var p = l[i], st = progState(p), cls = 'g-prog ' + st, tag = '';
-      if (st === 'past') { tag = p.vod ? seenTag(p, 'Tímaflakk') : 'Ekki í boði'; if (!p.vod) cls += ' novod'; else if (seenPct(p) >= 1) cls += ' seen'; }
-      else if (st === 'now') tag = '● Í beinni';
+  function openGuide() {
+    state.view = 'guide';
+    hideSarpur();
+    $('bar').className = 'bar hidden';
+    $('epg').className = 'epg';
+    document.body.className = 'in-guide';
+    g.zone = 'grid'; g.ch = state.ch; g.epg = {}; g.top = 0;
+    g.t = state.mode === 'vod' && state.prog && !state.prog.sarpur ? state.prog.start : now() - behindLive() * 1000;
+    g.win = floorSlot(g.t);
+    renderGuide();
+    placePreview(true);
+  }
+  function hideGuide() {
+    $('epg').className = 'epg hidden';
+    document.body.className = '';
+    placePreview(false);
+  }
+  function closeGuide() {
+    hideGuide();
+    state.view = 'watch';
+    showBar();
+  }
+
+  // Spilarinn sjálfur er færður yfir forsýnargluggann svo útsendingin heldur áfram
+  function placePreview(on) {
+    var v = video.style;
+    if (!on) { video.className = ''; v.left = v.top = v.width = v.height = ''; return; }
+    var r = $('e-pv').getBoundingClientRect();
+    video.className = 'pv';
+    v.left = r.left + 'px'; v.top = r.top + 'px'; v.width = r.width + 'px'; v.height = r.height + 'px';
+  }
+  window.addEventListener('resize', function () { if (state.view === 'guide') { placePreview(true); renderGuide(); } });
+
+  // Dagskrá rásar frá deginum fyrir t til dagsins eftir, í tímaröð. wait: hluti hennar er enn á leiðinni.
+  // g.epg geymir svörin á meðan dagskráin er opin, svo misheppnuð sókn er ekki endurtekin í sífellu.
+  var renderTimer = null;
+  function rowProgs(c, t) {
+    var out = [], wait = false, d0 = dayOffsetOf(t), seenIds = {};
+    for (var d = d0 - 1; d <= d0 + 1; d++) {
+      if (d < -DAYS_BACK || d > DAYS_FWD) continue;
+      var key = c.epg + '|' + isoDate(d);
+      if (g.epg[key] === undefined) fetchDay(c, d, key);
+      var l = g.epg[key];
+      if (!l) { wait = true; continue; }
+      for (var i = 0; i < l.length; i++) if (!seenIds[l[i].id]) { seenIds[l[i].id] = 1; out.push(l[i]); }
+    }
+    out.sort(function (a, b) { return a.start - b.start; });
+    return { list: out, wait: wait };
+  }
+  function fetchDay(c, d, key) {
+    g.epg[key] = null;
+    getEpg(c, d, function (list) {
+      g.epg[key] = list;
+      // getEpg getur svarað strax úr skyndiminni: teikna þá ekki inni í miðri teikningu
+      clearTimeout(renderTimer);
+      renderTimer = setTimeout(function () { if (state.view === 'guide') renderGuide(); }, 0);
+    });
+  }
+
+  // Valinn þáttur: sá sem er á rásinni á tíma bendilsins
+  function guideFocus() {
+    var c = CHANNELS[g.ch];
+    if (!c.epg) return { none: true, title: c.name };
+    var r = rowProgs(c, g.t), i = findAt(r.list, g.t);
+    if (i >= 0) return r.list[i];
+    return { none: true, title: r.wait ? 'Sæki dagskrá…' : 'Ekkert á dagskrá' };
+  }
+
+  function follow() {
+    if (g.t < g.win) g.win = floorSlot(g.t);
+    else if (g.t >= g.win + WIN - SLOT / 2) g.win = floorSlot(g.t) - WIN + 2 * SLOT;
+  }
+  // Næsti/fyrri þáttur á valinni rás; til vinstri af fyrsta þætti (eða rás án dagskrár) í flokkana
+  function moveTime(dir) {
+    var c = CHANNELS[g.ch];
+    if (!c.epg) { if (dir < 0) g.zone = 'groups'; return; }
+    var r = rowProgs(c, g.t), l = r.list, p = null, i;
+    if (dir > 0) { for (i = 0; i < l.length; i++) if (l[i].start > g.t) { p = l[i]; break; } }
+    else {
+      var cur = findAt(l, g.t), from = cur >= 0 ? l[cur].start : g.t;
+      for (i = l.length - 1; i >= 0; i--) if (l[i].start < from) { p = l[i]; break; }
+    }
+    if (!p) { if (dir < 0 && !r.wait) g.zone = 'groups'; return; }
+    g.t = p.start; follow();
+  }
+  function shiftDay(dir) {
+    g.t = Math.max(Date.parse(isoDate(-DAYS_BACK) + 'T00:00:00Z'), Math.min(Date.parse(isoDate(DAYS_FWD) + 'T23:59:00Z'), g.t + dir * DAY));
+    g.win = floorSlot(g.t);
+  }
+
+  function renderGuide() {
+    g.min = Math.floor(now() / 60000);
+    renderRail(); renderGroups(); renderGrid(); renderInfo();
+  }
+
+  function renderRail() {
+    var li = $('e-rail').getElementsByTagName('li');
+    for (var i = 0; i < li.length; i++) {
+      li[i].className = (i === 0 ? 'sel' : '') + (g.zone === 'rail' && i === g.rail ? ' focus' : '');
+    }
+  }
+
+  var grpBuilt = false;
+  function renderGroups() {
+    var G = groups(), box = $('e-groups'), gi = groupIdx(g.ch), i;
+    if (!grpBuilt) {
+      var html = '';
+      for (i = 0; i < G.length; i++) html += '<li class="e-grp"><span class="nm">' + esc(G[i].name) + '</span><span class="n">' + G[i].n + '</span></li>';
+      box.innerHTML = html; grpBuilt = true;
+    }
+    for (i = 0; i < G.length; i++) {
+      box.children[i].className = 'e-grp' + (i === gi ? ' sel' + (g.zone === 'groups' ? ' focus' : '') : '');
+    }
+    var cur = box.children[gi];
+    box.scrollTop = Math.max(0, cur.offsetTop - box.clientHeight / 2 + cur.offsetHeight / 2);
+  }
+
+  function block(s, e, title, cls, extra) {
+    var a = Math.max(s, g.win), b = Math.min(e, g.win + WIN);
+    return '<div class="gb ' + cls + '" style="left:' + ((a - g.win) / WIN * 100) + '%;width:calc(' + ((b - a) / WIN * 100) + '% - .3vw)">' +
+      '<span>' + (s < g.win ? '‹ ' : '') + esc(title) + '</span>' + (extra || '') + '</div>';
+  }
+  function rowBlocks(ci) {
+    var c = CHANNELS[ci], foc = ci === g.ch && g.zone === 'grid', end = g.win + WIN;
+    var none = 'none' + (foc ? ' focus' : '');
+    if (!c.epg) return block(g.win, end, 'Engar upplýsingar', none);
+    var r = rowProgs(c, g.t), html = '';
+    for (var i = 0; i < r.list.length; i++) {
+      var p = r.list[i];
+      if (p.end <= g.win || p.start >= end) continue;
+      var cls = progState(p);
+      if (cls === 'past' && !p.vod) cls += ' novod';
+      if (p.vod && seenPct(p) >= 1) cls += ' seen';
       if (state.mode === 'vod' && state.prog && state.prog.id === p.id) cls += ' playing';
-      if (i === g.idx && g.zone === 'progs') cls += ' focus';
-      html += '<li class="' + cls + '"><span class="t">' + (p.liveOnly ? '' : hhmm(p.start)) + '</span><span class="n">' + esc(p.title) + '</span><span class="s">' + tag + '</span>' + (p.vod ? seenBar(p) : '') + '</li>';
+      if (foc && p.start <= g.t && g.t < p.end) cls += ' focus';
+      html += block(p.start, p.end, p.title, cls, p.vod ? seenBar(p) : '');
     }
-    $('g-progs').innerHTML = html;
-    scrollGuide();
-    renderDetail();
+    return html || block(g.win, end, r.wait ? 'Sæki dagskrá…' : 'Engin dagskrá', none);
   }
 
-  function scrollGuide() { scrollList($('g-progs'), g.idx); }
-  function scrollList(ul, idx) {
-    var wrap = ul.parentNode, item = ul.children[idx];
-    if (!item) { ul.style.top = '0px'; return; }
-    var h = wrap.offsetHeight, top = item.offsetTop, ih = item.offsetHeight;
-    // Haldið valinni línu í efri þriðjungi
-    var target = Math.max(0, top - h / 3 + ih / 2);
-    var maxScroll = Math.max(0, ul.offsetHeight - h);
-    ul.style.top = -Math.min(target, maxScroll) + 'px';
+  function rowPx() { return window.innerWidth * 3.65 / 100; } // .e-row: hæð + bil
+  function renderGrid() {
+    var gr = groups()[groupIdx(g.ch)], row = g.ch - gr.first, box = $('e-grid'), html = '', s;
+    g.rows = Math.max(3, Math.floor(box.clientHeight / rowPx()));
+    if (row < g.top) g.top = row;
+    else if (row >= g.top + g.rows) g.top = row - g.rows + 1;
+    g.top = Math.max(0, Math.min(g.top, gr.n - g.rows));
+
+    $('e-date').innerHTML = esc(dayLabel(dayOffsetOf(g.win + SLOT)) + '  ' + hhmm(now()));
+    for (s = g.win; s < g.win + WIN; s += SLOT) html += '<span style="left:' + ((s - g.win) / WIN * 100) + '%">' + hhmm(s) + '</span>';
+    $('e-ticks').innerHTML = html;
+
+    html = '';
+    for (var r = g.top; r < Math.min(gr.n, g.top + g.rows); r++) {
+      var ci = gr.first + r, c = CHANNELS[ci];
+      var on = ci === state.ch && state.mode === 'live';
+      html += '<div class="e-row' + (ci === g.ch ? ' sel' : '') + (on ? ' on' : '') + '"><div class="e-ch"><span class="num">' + c.num + '</span>' +
+        (c.logo ? '<span class="e-logo" style="background-image:url(&quot;' + esc(c.logo.replace(/"/g, '%22')) + '&quot;)"></span>' : '') +
+        '<span class="nm">' + esc(c.name) + '</span></div><div class="e-progs">' + rowBlocks(ci) + '</div></div>';
+    }
+    var n = now();
+    if (n >= g.win && n < g.win + WIN) html += '<div class="e-nowwrap"><div class="e-now" style="left:' + ((n - g.win) / WIN * 100) + '%"></div></div>';
+    box.innerHTML = html;
   }
 
-  function renderDetail() {
-    var p = g.list[g.idx], ch = CHANNELS[g.ch];
-    if (!p) { $('g-dtitle').innerHTML = ''; $('g-dmeta').innerHTML = ''; $('g-ddesc').innerHTML = ''; $('g-dhint').innerHTML = ''; $('g-img').style.backgroundImage = ''; return; }
-    var st = progState(p), hint = '', meta = '';
-    $('g-img').style.backgroundImage = p.image ? 'url("' + p.image + '")' : '';
-    $('g-dtitle').innerHTML = esc(p.title);
-    if (!p.liveOnly) {
-      meta = ch.name + ' · ' + dayLabel(g.day) + ' ' + hhmm(p.start) + '–' + hhmm(p.end) + ' · ' + Math.round((p.end - p.start) / 60000) + ' mín.';
-      if (p.subtitle) meta = p.subtitle + ' · ' + meta;
+  function isOn(p) { return p.none || progState(p) === 'now'; }
+  function playingThis(p) {
+    if (state.mode === 'vod') return !!(state.prog && p.id && state.prog.id === p.id);
+    return state.ch === g.ch && isOn(p);
+  }
+
+  function renderInfo() {
+    var c = CHANNELS[g.ch], p = guideFocus(), st = p.none ? 'now' : progState(p), time = '', left = '', hint, pct = -1;
+    $('e-ich').innerHTML = '<span class="num">' + c.num + '</span>' + esc(c.name);
+    $('e-ititle').innerHTML = esc(p.title);
+    if (!p.none) {
+      var off = dayOffsetOf(p.start), t = now();
+      time = (off ? dayLabel(off) + '  ' : '') + hhmm(p.start) + ' – ' + hhmm(p.end);
+      if (st === 'now') { pct = (t - p.start) / (p.end - p.start); left = Math.ceil((p.end - t) / 60000) + ' mín. eftir'; }
+      else if (st === 'future') {
+        var m = Math.ceil((p.start - t) / 60000);
+        left = 'Eftir ' + (m < 60 ? m + ' mín.' : Math.floor(m / 60) + ' klst.' + (m % 60 ? ' ' + m % 60 + ' mín.' : ''));
+      }
+      else left = Math.round((p.end - p.start) / 60000) + ' mín.';
     }
-    $('g-dmeta').innerHTML = esc(meta);
-    $('g-ddesc').innerHTML = esc(p.description || '');
-    if (st === 'past') hint = p.vod ? seenHint(p) || 'OK  Horfa frá byrjun' : 'RÚV býður ekki upp á þennan þátt eftir á';
-    else if (st === 'now') hint = p.liveOnly ? 'OK  Horfa' : 'OK  Beint   ·   ▶  Frá byrjun';
-    else hint = 'Hefst kl. ' + hhmm(p.start);
-    if (p.vod && p.domesticOnly && st === 'past') hint += '   (aðeins á Íslandi)';
-    $('g-dhint').innerHTML = esc(hint);
+    $('e-itime').innerHTML = esc(time);
+    $('e-ibar').style.display = pct >= 0 ? '' : 'none';
+    $('e-ibar').firstChild.style.width = Math.round(Math.max(0, pct) * 100) + '%';
+    $('e-ileft').innerHTML = esc(left);
+    $('e-isub').innerHTML = esc(p.subtitle || '');
+    $('e-idesc').innerHTML = esc(p.description || '');
+
+    if (g.zone === 'groups') hint = '▲▼ Flokkar   ·   ▶ Rásir';
+    else if (g.zone === 'rail') hint = 'OK  Velja';
+    else if (st === 'future') hint = 'Hefst kl. ' + hhmm(p.start);
+    else if (st === 'past' && !p.vod) hint = 'RÚV býður ekki upp á þennan þátt eftir á';
+    else if (playingThis(p)) hint = 'OK  Allur skjár';
+    else if (st === 'past') hint = (seenHint(p) || 'OK  Horfa frá byrjun') + (p.domesticOnly ? '  (aðeins á Íslandi)' : '');
+    else hint = 'OK  Horfa' + (p.none ? '' : '   ·   ⏯  Frá byrjun');
+    if (g.zone === 'grid' && c.epg) hint += '   ·   ⏪⏩ Dagur';
+    $('e-ihint').innerHTML = esc(hint);
+  }
+
+  // OK: spila í glugganum, eða á allan skjáinn ef það spilar nú þegar. full (⏯): beint á allan skjáinn, frá byrjun.
+  function guidePlay(full) {
+    var c = CHANNELS[g.ch], p = guideFocus(), st = p.none ? 'now' : progState(p);
+    if (st === 'future') { toast('Þessi þáttur hefst kl. ' + hhmm(p.start)); return; }
+    if (st === 'past' && !p.vod) { toast('Þessi þáttur er ekki aðgengilegur eftir á'); return; }
+    if (playingThis(p) && !(full && st === 'now' && !p.none)) { closeGuide(); return; }
+    var chIdx = g.ch, list = c.epg ? rowProgs(c, g.t).list : null;
+    if (full) closeGuide();
+    if (st === 'past') { state.ch = chIdx; playVod(p, list); }
+    else if (!full || p.none) { if (chIdx !== state.ch || state.mode !== 'live') playLive(chIdx); }
+    // Frá byrjun: helst VOD ef RÚV hefur þegar sett hann inn, annars spóla beinu útsendingunni
+    else if (p.vod) { state.ch = chIdx; playVod(p, list); }
+    else if (chIdx === state.ch && state.mode === 'live') jumpLiveTo(p.start);
+    else playLive(chIdx, p);
+    if (state.view === 'guide') renderGuide();
+  }
+
+  function railGo() {
+    var id = RAIL[g.rail];
+    if (id === 'sarpur') openSarpur();
+    else if (id === 'watch') closeGuide();
+    else { g.zone = 'grid'; renderGuide(); }
   }
 
   function guideKey(k) {
-    if (g.zone === 'progs') {
-      if (is(k, 'UP')) {
-        if (g.idx > 0) { g.idx--; renderGuideList(); }
-        else { g.zone = 'days'; renderGuideFrame(); renderGuideList(); }
-      } else if (is(k, 'DOWN')) {
-        if (g.idx < g.list.length - 1) { g.idx++; renderGuideList(); }
-      } else if (is(k, 'LEFT')) {
-        g.zone = 'channels'; renderGuideFrame(); renderGuideList();
-      } else if (is(k, 'RIGHT')) {
-        var cur = g.list[g.idx];
-        if (cur && progState(cur) === 'now' && !cur.liveOnly) startProg(cur, true);
-      } else if (is(k, 'OK')) {
-        var p = g.list[g.idx]; if (p) startProg(p, false);
-      } else if (is(k, 'CH_UP') || is(k, 'CH_DOWN')) {
-        // síðu upp/niður í listanum
-        g.idx = Math.max(0, Math.min(g.list.length - 1, g.idx + (is(k, 'CH_UP') ? -8 : 8))); renderGuideList();
-      }
-    } else if (g.zone === 'channels') {
-      if (is(k, 'UP') && g.ch > 0) { g.ch--; loadGuideList(g.day === 0 ? now() : null); }
-      else if (is(k, 'DOWN') && g.ch < CHANNELS.length - 1) { g.ch++; loadGuideList(g.day === 0 ? now() : null); }
+    var G = groups(), gi = groupIdx(g.ch), gr = G[gi];
+    if (g.zone === 'rail') {
+      if (is(k, 'UP') && g.rail > 0) g.rail--;
+      else if (is(k, 'DOWN') && g.rail < RAIL.length - 1) g.rail++;
+      else if (is(k, 'RIGHT')) g.zone = 'groups';
+      else if (is(k, 'OK')) { railGo(); return; }
+    } else if (g.zone === 'groups') {
+      if (is(k, 'UP') && gi > 0) g.ch = G[gi - 1].first;
+      else if (is(k, 'DOWN') && gi < G.length - 1) g.ch = G[gi + 1].first;
+      else if (is(k, 'CH_UP') || is(k, 'CH_DOWN')) g.ch = G[Math.max(0, Math.min(G.length - 1, gi + (is(k, 'CH_UP') ? -8 : 8)))].first;
+      else if (is(k, 'RIGHT') || is(k, 'OK')) g.zone = 'grid';
+      else if (is(k, 'LEFT')) g.zone = 'rail';
+    } else {
+      if (is(k, 'UP') && g.ch > 0) g.ch--;
+      else if (is(k, 'DOWN') && g.ch < CHANNELS.length - 1) g.ch++;
       else if (is(k, 'CH_UP') || is(k, 'CH_DOWN')) {
-        var to = groupJump(g.ch, is(k, 'CH_DOWN') ? 1 : -1);
-        if (to !== g.ch) { g.ch = to; loadGuideList(g.day === 0 ? now() : null); }
+        // síðu upp/niður innan flokksins
+        var d = is(k, 'CH_UP') ? -g.rows : g.rows;
+        g.ch = Math.max(gr.first, Math.min(gr.first + gr.n - 1, g.ch + d)); g.top += d;
       }
-      else if (is(k, 'RIGHT')) { g.zone = 'progs'; renderGuideFrame(); renderGuideList(); }
-      else if (is(k, 'OK')) { closeGuide(); playLive(g.ch); }
-    } else if (g.zone === 'days') {
-      if (is(k, 'LEFT') && g.day > -DAYS_BACK) { g.day--; loadGuideList(null); }
-      else if (is(k, 'RIGHT') && g.day < DAYS_FWD) { g.day++; loadGuideList(g.day === 0 ? now() : null); }
-      else if (is(k, 'UP')) { g.zone = 'sarpur'; renderGuideFrame(); }
-      else if (is(k, 'DOWN') || is(k, 'OK')) { g.zone = 'progs'; renderGuideFrame(); renderGuideList(); }
-    } else if (g.zone === 'sarpur') {
-      if (is(k, 'OK') || is(k, 'RIGHT')) openSarpur();
-      else if (is(k, 'DOWN')) { g.zone = 'days'; renderGuideFrame(); }
+      else if (is(k, 'LEFT')) moveTime(-1);
+      else if (is(k, 'RIGHT')) moveTime(1);
+      else if (is(k, 'REW') || is(k, 'FF')) shiftDay(is(k, 'FF') ? 1 : -1);
+      else if (is(k, 'OK')) { guidePlay(false); return; }
     }
+    renderGuide();
   }
 
-  function startProg(p, fromStart) {
-    var st = progState(p);
-    if (st === 'future') { toast('Þessi þáttur hefst kl. ' + hhmm(p.start)); return; }
-    if (st === 'past' && !p.vod) { toast('Þessi þáttur er ekki aðgengilegur eftir á'); return; }
-    var list = g.list, chIdx = g.ch;
-    closeGuide();
-    if (st === 'past') { state.ch = chIdx; playVod(p, list); return; }
-    // Í gangi núna
-    if (!fromStart) { if (chIdx !== state.ch || state.mode !== 'live') playLive(chIdx); else goLive(); return; }
-    // Frá byrjun: helst VOD ef RÚV hefur þegar sett hann inn, annars spóla beinu útsendingunni
-    if (p.vod) { state.ch = chIdx; playVod(p, list); }
-    else if (chIdx === state.ch && state.mode === 'live') jumpLiveTo(p.start);
-    else playLive(chIdx, p);
+  // Til baka: fyrst aftur að líðandi stund, svo í flokkana, svo út
+  function guideBack() {
+    var n = now();
+    if (g.zone === 'grid' && (n < g.win || n >= g.win + WIN)) { g.t = n; g.win = floorSlot(n); renderGuide(); }
+    else if (g.zone === 'grid') { g.zone = 'groups'; renderGuide(); }
+    else closeGuide();
   }
 
   // ---------- Sarpurinn (efnisveita RÚV) ----------
@@ -747,7 +845,7 @@
   }
 
   function openSarpur() {
-    if (state.view === 'guide') $('guide').className = 'guide hidden';
+    if (state.view === 'guide') hideGuide();
     state.view = 'sarpur';
     $('bar').className = 'bar hidden';
     $('sarpur').className = 'guide sarpur';
@@ -787,6 +885,16 @@
     $('s-crumb').innerHTML = esc(sp.show ? sp.panels[sp.panel].title + '  ›  ' + sp.show.title : '');
     $('s-clock').innerHTML = hhmm(now());
     renderSarpurItems();
+  }
+
+  function scrollList(ul, idx) {
+    var wrap = ul.parentNode, item = ul.children[idx];
+    if (!item) { ul.style.top = '0px'; return; }
+    var h = wrap.offsetHeight, top = item.offsetTop, ih = item.offsetHeight;
+    // Haldið valinni línu í efri þriðjungi
+    var target = Math.max(0, top - h / 3 + ih / 2);
+    var maxScroll = Math.max(0, ul.offsetHeight - h);
+    ul.style.top = -Math.min(target, maxScroll) + 'px';
   }
 
   function renderSarpurItems() {
@@ -892,8 +1000,8 @@
     numTimer = setTimeout(function () {
       var n = parseInt(numBuf, 10); numBuf = '';
       for (var i = 0; i < CHANNELS.length; i++) if (CHANNELS[i].num === n) {
-        if (state.view === 'guide') closeGuide();
-        else if (state.view === 'sarpur') { hideSarpur(); state.view = 'watch'; }
+        if (state.view === 'guide') { g.ch = i; g.zone = 'grid'; renderGuide(); return; }
+        if (state.view === 'sarpur') { hideSarpur(); state.view = 'watch'; }
         playLive(i); return;
       }
       toast('Engin rás númer ' + n);
@@ -901,11 +1009,7 @@
   }
 
   function handleBack() {
-    if (state.view === 'guide') {
-      if (g.zone !== 'progs') { g.zone = 'progs'; renderGuideFrame(); renderGuideList(); }
-      else closeGuide();
-      return;
-    }
+    if (state.view === 'guide') { guideBack(); return; }
     if (state.view === 'sarpur') { if (!sarpurBack()) closeSarpur(); return; }
     // Úr þætti í Sarpinum aftur í Sarpinn, þangað sem frá var horfið
     if (state.mode === 'vod' && state.prog && state.prog.sarpur) { openSarpur(); return; }
@@ -919,7 +1023,11 @@
     if (onGesture()) { e.preventDefault(); return; }
     if (k >= 48 && k <= 57) { numberKey(String(k - 48)); e.preventDefault(); return; }
     if (is(k, 'BACK')) { e.preventDefault(); handleBack(); return; }
-    if (is(k, 'PLAYPAUSE') || is(k, 'PLAY') || is(k, 'PAUSE')) { e.preventDefault(); if (state.view === 'watch') togglePause(); return; }
+    if (is(k, 'PLAYPAUSE') || is(k, 'PLAY') || is(k, 'PAUSE')) {
+      e.preventDefault();
+      if (state.view === 'watch') togglePause(); else if (state.view === 'guide' && g.zone === 'grid') guidePlay(true);
+      return;
+    }
     if (is(k, 'GUIDE')) { e.preventDefault(); if (state.view === 'guide') closeGuide(); else openGuide(); return; }
     if (is(k, 'SARPUR')) { e.preventDefault(); if (state.view === 'sarpur') closeSarpur(); else openSarpur(); return; }
 
@@ -966,7 +1074,7 @@
   // Uppfæra klukku/stiku reglulega
   setInterval(function () {
     sampleRate();
-    if (state.view === 'guide') { $('g-clock').innerHTML = hhmm(now()); }
+    if (state.view === 'guide') { if (Math.floor(now() / 60000) !== g.min) renderGuide(); }
     else if (state.view === 'sarpur') { $('s-clock').innerHTML = hhmm(now()); }
     else if (barVisible()) renderBar();
   }, 1000);
